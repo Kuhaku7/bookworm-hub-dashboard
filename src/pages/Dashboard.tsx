@@ -1,170 +1,209 @@
-
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockDashboardStats, mockMostBorrowedBooks, mockBooksByCategory, mockMonthlyLoanStats } from '@/data/mockData';
-import { Book, BarChart as BarChartIcon, Users, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  DashboardStats,
+  BooksByCategory,
+  MostBorrowedBook,
+  MonthlyLoanStat,
+} from "@/types";
+import {
+  getDashboardStats,
+  getBooksByCategory,
+  getMostBorrowedBooks,
+  getMonthlyLoanStats,
+} from "@/services/apiDashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MetricCard } from "@/components/MetricCard";
+import { BookOpen, Users, CircleDollarSign, Book } from "lucide-react";
+import { DoughnutChart } from "@/components/DoughnutChart";
+import { BarChart } from "@/components/BarChart";
+import { DataTable } from "@/components/ui/data-table";
+import { columns } from "@/components/data-table/columns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard = () => {
-  // Cores para os gráficos
-  const COLORS = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#6366f1'];
-  
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Visão geral da biblioteca e suas estatísticas
-        </p>
-      </div>
-      
-      {/* Cards com estatísticas */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+    null
+  );
+  const [booksByCategory, setBooksByCategory] = useState<
+    BooksByCategory[] | null
+  >(null);
+  const [mostBorrowedBooks, setMostBorrowedBooks] = useState<
+    MostBorrowedBook[] | null
+  >(null);
+  const [monthlyLoanStats, setMonthlyLoanStats] = useState<
+    MonthlyLoanStat[] | null
+  >(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const stats = await getDashboardStats();
+        const categories = await getBooksByCategory();
+        const borrowedBooks = await getMostBorrowedBooks();
+        const loanStats = await getMonthlyLoanStats();
+
+        setDashboardStats(stats);
+        setBooksByCategory(categories);
+        setMostBorrowedBooks(borrowedBooks);
+        setMonthlyLoanStats(loanStats);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <Skeleton className="h-6 w-32" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <Skeleton className="h-6 w-32" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <Skeleton className="h-6 w-32" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <Skeleton className="h-6 w-32" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Livros</CardTitle>
-            <Book className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockDashboardStats.totalBooks}</div>
-            <p className="text-xs text-muted-foreground">
-              No acervo da biblioteca
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usuários Ativos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockDashboardStats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Cadastrados no sistema
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Empréstimos</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockDashboardStats.totalLoans}</div>
-            <p className="text-xs text-muted-foreground">
-              Realizados no sistema
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Livros Emprestados</CardTitle>
-            <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockDashboardStats.totalLoanedBooks}</div>
-            <p className="text-xs text-muted-foreground">
-              Atualmente emprestados
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Gráfico de barras - Livros mais emprestados */}
-        <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Livros Mais Emprestados</CardTitle>
+            <CardTitle>
+              <Skeleton className="h-6 w-48" />
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={mockMostBorrowedBooks.slice(0, 5)} layout="vertical">
-                <XAxis type="number" />
-                <YAxis 
-                  dataKey="title" 
-                  type="category" 
-                  tick={{ fontSize: 12 }} 
-                  width={150}
-                  tickFormatter={(value) => value.length > 20 ? `${value.slice(0, 17)}...` : value}
-                />
-                <Tooltip 
-                  formatter={(value, name, props) => [value, 'Empréstimos']}
-                  labelFormatter={(label) => `${label} - ${props.payload[0].payload.author}`}
-                />
-                <Bar dataKey="borrowCount" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
+            <Skeleton className="h-[300px] w-full" />
           </CardContent>
         </Card>
-        
-        {/* Gráfico de pizza - Livros por categoria */}
-        <Card className="col-span-1">
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <Skeleton className="h-6 w-48" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <Skeleton className="h-6 w-48" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[400px] w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total de Livros"
+          metric={dashboardStats?.totalBooks.toString() || "0"}
+          icon={BookOpen}
+        />
+        <MetricCard
+          title="Usuários Ativos"
+          metric={dashboardStats?.activeUsers.toString() || "0"}
+          icon={Users}
+        />
+        <MetricCard
+          title="Total de Empréstimos"
+          metric={dashboardStats?.totalLoans.toString() || "0"}
+          icon={CircleDollarSign}
+        />
+        <MetricCard
+          title="Livros Emprestados"
+          metric={dashboardStats?.totalLoanedBooks.toString() || "0"}
+          icon={Book}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
           <CardHeader>
             <CardTitle>Livros por Categoria</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={mockBooksByCategory}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                  nameKey="category"
-                >
-                  {mockBooksByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value, name, props) => [value, 'Quantidade']}
-                  labelFormatter={(label) => `${label}`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {booksByCategory ? (
+              <DoughnutChart data={booksByCategory} />
+            ) : (
+              <p>Sem dados de categoria disponíveis.</p>
+            )}
           </CardContent>
         </Card>
-        
-        {/* Gráfico de linha - Empréstimos por mês */}
-        <Card className="col-span-1 lg:col-span-2">
+
+        <Card>
           <CardHeader>
-            <CardTitle>Evolução de Empréstimos</CardTitle>
+            <CardTitle>Empréstimos Mensais</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart
-                data={mockMonthlyLoanStats}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="loans"
-                  stroke="#3b82f6"
-                  activeDot={{ r: 8 }}
-                  name="Empréstimos"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {monthlyLoanStats ? (
+              <BarChart data={monthlyLoanStats} />
+            ) : (
+              <p>Sem dados de empréstimos mensais disponíveis.</p>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Livros Mais Emprestados</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-auto">
+          {mostBorrowedBooks ? (
+            <DataTable columns={columns} data={mostBorrowedBooks} />
+          ) : (
+            <p>Sem dados de livros emprestados disponíveis.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
