@@ -1,8 +1,7 @@
-
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
@@ -27,6 +26,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if Supabase is configured
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      console.warn('Supabase is not properly configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+      setLoading(false);
+      return;
+    }
+
+    const formatUser = (session: Session | null): User | null => {
+      if (!session?.user) return null;
+      
+      const supaUser = session.user;
+      
+      return {
+        id: supaUser.id,
+        email: supaUser.email || '',
+        name: supaUser.user_metadata.name || supaUser.email?.split('@')[0] || '',
+      };
+    };
+
+    // Verificar sessão ao carregar
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const formattedUser = formatUser(session);
+      setUser(formattedUser);
+      setLoading(false);
+    };
+    
+    checkSession();
+  }, []);
+
   // Converter usuário do Supabase para o formato que usamos
   const formatUser = (session: Session | null): User | null => {
     if (!session?.user) return null;
@@ -42,6 +72,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Verificar sessão ao carregar
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const formattedUser = formatUser(session);
@@ -52,20 +86,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Verificar se já existe uma sessão ativa
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const formattedUser = formatUser(session);
-      setUser(formattedUser);
-      setLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const formattedUser = formatUser(session);
+        setUser(formattedUser);
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     
     checkSession();
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured()) {
+      toast.error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -89,6 +133,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, name: string) => {
+    if (!isSupabaseConfigured()) {
+      toast.error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -134,6 +183,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured()) {
+      navigate('/login');
+      return;
+    }
+    
     try {
       await supabase.auth.signOut();
       setUser(null);
