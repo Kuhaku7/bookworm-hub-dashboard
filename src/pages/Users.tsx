@@ -1,10 +1,10 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
-  CardFooter, 
+  CardFooter,
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
@@ -33,18 +33,36 @@ import { Label } from '@/components/ui/label';
 import { Plus, Search, Edit, Trash2, User as UserIcon } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 import { User } from '@/types';
-import { mockUsers } from '@/data/mockData';
+import { getUsers, createUser, updateUser, deleteUser } from '@/services/apiUsers';
 
 const Users = () => {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: '',
     email: '',
-    isActive: true,
+    is_active: true,
   });
   const [isEditing, setIsEditing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const data = await getUsers();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast.error('Erro ao carregar usuários');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -63,54 +81,66 @@ const Users = () => {
     }));
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.name || !newUser.email) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    const currentDate = new Date().toISOString();
-    const userToAdd: User = {
-      id: Date.now().toString(),
-      name: newUser.name,
-      email: newUser.email,
-      isActive: newUser.isActive || false,
-      createdAt: currentDate,
-      updatedAt: currentDate,
-    };
+    try {
+      const userToAdd: Omit<User, 'id' | 'created_at' | 'updated_at'> = {
+        name: newUser.name,
+        email: newUser.email,
+        is_active: newUser.is_active || false,
+      };
 
-    setUsers(prev => [userToAdd, ...prev]);
-    resetForm();
-    toast.success("Usuário adicionado com sucesso!");
+      const addedUser = await createUser(userToAdd);
+      setUsers(prev => [addedUser, ...prev]);
+      resetForm();
+      toast.success("Usuário adicionado com sucesso!");
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast.error("Erro ao adicionar usuário");
+    }
   };
 
-  const handleEditUser = () => {
+  const handleEditUser = async () => {
     if (!newUser.name || !newUser.email || !currentUserId) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    setUsers(prev => prev.map(user => 
-      user.id === currentUserId ? 
-      { 
-        ...user, 
-        name: newUser.name || user.name, 
-        email: newUser.email || user.email, 
-        isActive: newUser.isActive !== undefined ? newUser.isActive : user.isActive,
-        updatedAt: new Date().toISOString() 
-      } : user
-    ));
-    
-    resetForm();
-    setIsEditing(false);
-    setCurrentUserId(null);
-    toast.success("Usuário atualizado com sucesso!");
+    try {
+      const updatedUser = await updateUser(currentUserId, {
+        name: newUser.name,
+        email: newUser.email,
+        is_active: newUser.is_active !== undefined ? newUser.is_active : undefined,
+      });
+
+      setUsers(prev => prev.map(user => 
+        user.id === currentUserId ? updatedUser : user
+      ));
+      
+      resetForm();
+      setIsEditing(false);
+      setCurrentUserId(null);
+      toast.success("Usuário atualizado com sucesso!");
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error("Erro ao atualizar usuário");
+    }
   };
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      setUsers(prev => prev.filter(user => user.id !== id));
-      toast.success("Usuário removido com sucesso!");
+      try {
+        await deleteUser(id);
+        setUsers(prev => prev.filter(user => user.id !== id));
+        toast.success("Usuário removido com sucesso!");
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        toast.error("Erro ao excluir usuário");
+      }
     }
   };
 
@@ -118,7 +148,7 @@ const Users = () => {
     setNewUser({
       name: user.name,
       email: user.email,
-      isActive: user.isActive
+      is_active: user.is_active
     });
     setCurrentUserId(user.id);
     setIsEditing(true);
@@ -128,9 +158,17 @@ const Users = () => {
     setNewUser({
       name: '',
       email: '',
-      isActive: true,
+      is_active: true,
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-bookworm-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -193,15 +231,15 @@ const Users = () => {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="isActive" className="text-right">
+                <Label htmlFor="is_active" className="text-right">
                   Status
                 </Label>
                 <div className="col-span-3 flex items-center">
                   <Input
-                    id="isActive"
-                    name="isActive"
+                    id="is_active"
+                    name="is_active"
                     type="checkbox"
-                    checked={newUser.isActive}
+                    checked={newUser.is_active}
                     onChange={handleInputChange}
                     className="h-4 w-4"
                   />
@@ -266,14 +304,14 @@ const Users = () => {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Badge 
-                        variant={user.isActive ? "default" : "outline"}
-                        className={user.isActive ? "bg-green-500 hover:bg-green-600" : ""}
+                        variant={user.is_active ? "default" : "outline"}
+                        className={user.is_active ? "bg-green-500 hover:bg-green-600" : ""}
                       >
-                        {user.isActive ? "Ativo" : "Inativo"}
+                        {user.is_active ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                      {new Date(user.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

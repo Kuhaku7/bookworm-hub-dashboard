@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User } from "@/types";
-import { mockUsers, mockBooks } from "@/data/mockData";
+import { getUser, deleteUser } from "@/services/apiUsers";
 import { ArrowLeft, Calendar, Edit, Trash2, User as UserIcon } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
@@ -16,24 +16,36 @@ const UserDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulando busca do usuário na API
-    const fetchUser = () => {
+    const fetchUser = async () => {
+      if (!id) return;
+      
       setLoading(true);
-      setTimeout(() => {
-        const foundUser = mockUsers.find((u) => u.id === id);
-        setUser(foundUser || null);
+      try {
+        const userData = await getUser(id);
+        setUser(userData);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        toast.error("Erro ao carregar informações do usuário");
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     };
 
     fetchUser();
   }, [id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (!id) return;
+    
     if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
-      // Simulando deleção
-      toast.success("Usuário excluído com sucesso");
-      navigate("/users");
+      try {
+        await deleteUser(id);
+        toast.success("Usuário excluído com sucesso");
+        navigate("/users");
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        toast.error("Erro ao excluir o usuário");
+      }
     }
   };
 
@@ -77,8 +89,8 @@ const UserDetails = () => {
                 <CardTitle className="text-2xl">{user.name}</CardTitle>
                 <CardDescription className="text-lg">{user.email}</CardDescription>
               </div>
-              <Badge variant={user.isActive ? "default" : "outline"} className={user.isActive ? "bg-green-500" : ""}>
-                {user.isActive ? "Ativo" : "Inativo"}
+              <Badge variant={user.is_active ? "default" : "outline"} className={user.is_active ? "bg-green-500" : ""}>
+                {user.is_active ? "Ativo" : "Inativo"}
               </Badge>
             </div>
           </CardHeader>
@@ -91,7 +103,7 @@ const UserDetails = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Usuário desde</p>
                   <p className="font-medium">
-                    {new Date(user.createdAt).toLocaleDateString("pt-BR")}
+                    {new Date(user.created_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
               </div>
@@ -103,7 +115,7 @@ const UserDetails = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Última atualização</p>
                   <p className="font-medium">
-                    {new Date(user.updatedAt).toLocaleDateString("pt-BR")}
+                    {new Date(user.updated_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
               </div>
@@ -116,14 +128,14 @@ const UserDetails = () => {
                   <p className="text-sm text-muted-foreground">Total de empréstimos</p>
                   <p className="text-2xl font-bold">0</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Estatísticas disponíveis após integração com Supabase
+                    Estatísticas disponíveis em breve
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground">Status da conta</p>
                   <p className="text-lg font-semibold mt-1">
-                    <Badge variant={user.isActive ? "default" : "outline"} className={user.isActive ? "bg-green-500" : ""}>
-                      {user.isActive ? "Ativo" : "Inativo"}
+                    <Badge variant={user.is_active ? "default" : "outline"} className={user.is_active ? "bg-green-500" : ""}>
+                      {user.is_active ? "Ativo" : "Inativo"}
                     </Badge>
                   </p>
                 </div>
@@ -141,7 +153,7 @@ const UserDetails = () => {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Excluir
               </Button>
-              <Button onClick={() => navigate(`/users`)}>
+              <Button onClick={() => navigate(`/users/edit/${user.id}`)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </Button>
@@ -155,7 +167,7 @@ const UserDetails = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center py-8 text-muted-foreground">
-              <p>Esta funcionalidade estará disponível após a integração com o Supabase.</p>
+              <p>Esta funcionalidade estará disponível em breve.</p>
             </div>
           </CardContent>
         </Card>

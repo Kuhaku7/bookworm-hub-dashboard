@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Card, 
@@ -30,15 +30,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { Book, Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Book as BookIcon, Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { Book as BookType } from '@/types';
-import { mockBooks } from '@/data/mockData';
+import { Book } from '@/types';
+import { getBooks, createBook, updateBook, deleteBook } from '@/services/apiBooks';
 
 const Books = () => {
-  const [books, setBooks] = useState<BookType[]>(mockBooks);
+  const [books, setBooks] = useState<Book[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newBook, setNewBook] = useState<Partial<BookType>>({
+  const [newBook, setNewBook] = useState<Partial<Book>>({
     title: '',
     author: '',
     category: '',
@@ -47,6 +47,24 @@ const Books = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      try {
+        const data = await getBooks();
+        setBooks(data);
+      } catch (error) {
+        console.error('Error fetching books:', error);
+        toast.error('Erro ao carregar livros');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
 
   const filteredBooks = books.filter(book => 
     book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,67 +80,79 @@ const Books = () => {
     const { name, value, type, checked } = e.target;
     setNewBook(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : 
+              name === 'year' ? Number(value) : value
     }));
   };
 
-  const handleAddBook = () => {
+  const handleAddBook = async () => {
     if (!newBook.title || !newBook.author || !newBook.category || !newBook.year) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    const currentDate = new Date().toISOString();
-    const bookToAdd: BookType = {
-      id: Date.now().toString(),
-      title: newBook.title,
-      author: newBook.author,
-      category: newBook.category,
-      year: Number(newBook.year),
-      available: newBook.available || false,
-      createdAt: currentDate,
-      updatedAt: currentDate,
-      borrowCount: 0
-    };
+    try {
+      const bookToAdd: Omit<Book, 'id' | 'created_at' | 'updated_at' | 'borrow_count'> = {
+        title: newBook.title,
+        author: newBook.author,
+        category: newBook.category,
+        year: Number(newBook.year),
+        available: newBook.available || false,
+      };
 
-    setBooks(prev => [bookToAdd, ...prev]);
-    resetForm();
-    toast.success("Livro adicionado com sucesso!");
+      const addedBook = await createBook(bookToAdd);
+      setBooks(prev => [addedBook, ...prev]);
+      resetForm();
+      toast.success("Livro adicionado com sucesso!");
+    } catch (error) {
+      console.error('Error adding book:', error);
+      toast.error("Erro ao adicionar livro");
+    }
   };
 
-  const handleEditBook = () => {
+  const handleEditBook = async () => {
     if (!newBook.title || !newBook.author || !newBook.category || !newBook.year || !currentBookId) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
-    setBooks(prev => prev.map(book => 
-      book.id === currentBookId ? 
-      { 
-        ...book, 
-        title: newBook.title || book.title, 
-        author: newBook.author || book.author, 
-        category: newBook.category || book.category, 
-        year: Number(newBook.year) || book.year,
-        available: newBook.available !== undefined ? newBook.available : book.available,
-        updatedAt: new Date().toISOString() 
-      } : book
-    ));
-    
-    resetForm();
-    setIsEditing(false);
-    setCurrentBookId(null);
-    toast.success("Livro atualizado com sucesso!");
-  };
+    try {
+      const updatedBook = await updateBook(currentBookId, {
+        title: newBook.title,
+        author: newBook.author,
+        category: newBook.category,
+        year: Number(newBook.year),
+        available: newBook.available !== undefined ? newBook.available : undefined,
+      });
 
-  const handleDeleteBook = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este livro?')) {
-      setBooks(prev => prev.filter(book => book.id !== id));
-      toast.success("Livro removido com sucesso!");
+      setBooks(prev => prev.map(book => 
+        book.id === currentBookId ? updatedBook : book
+      ));
+      
+      resetForm();
+      setIsEditing(false);
+      setCurrentBookId(null);
+      toast.success("Livro atualizado com sucesso!");
+    } catch (error) {
+      console.error('Error updating book:', error);
+      toast.error("Erro ao atualizar livro");
     }
   };
 
-  const startEditing = (book: BookType) => {
+  const handleDeleteBook = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este livro?')) {
+      try {
+        await deleteBook(id);
+        setBooks(prev => prev.filter(book => book.id !== id));
+        toast.success("Livro removido com sucesso!");
+      } catch (error) {
+        console.error('Error deleting book:', error);
+        toast.error("Erro ao excluir livro");
+      }
+    }
+  };
+
+  const startEditing = (book: Book) => {
     setNewBook({
       title: book.title,
       author: book.author,
@@ -143,6 +173,14 @@ const Books = () => {
       available: true,
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-bookworm-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -336,7 +374,7 @@ const Books = () => {
                         
                         <Button variant="ghost" size="icon" asChild>
                           <Link to={`/books/${book.id}`}>
-                            <Book size={16} />
+                            <BookIcon size={16} />
                           </Link>
                         </Button>
                       </div>

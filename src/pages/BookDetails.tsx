@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Book as BookType } from "@/types";
-import { mockBooks } from "@/data/mockData";
+import { getBook, deleteBook } from "@/services/apiBooks";
 import { ArrowLeft, Book, Calendar, Edit, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
@@ -16,24 +16,36 @@ const BookDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulando busca do livro na API
-    const fetchBook = () => {
+    const fetchBook = async () => {
+      if (!id) return;
+      
       setLoading(true);
-      setTimeout(() => {
-        const foundBook = mockBooks.find((b) => b.id === id);
-        setBook(foundBook || null);
+      try {
+        const bookData = await getBook(id);
+        setBook(bookData);
+      } catch (error) {
+        console.error("Error fetching book:", error);
+        toast.error("Erro ao carregar informações do livro");
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     };
 
     fetchBook();
   }, [id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (!id) return;
+    
     if (window.confirm("Tem certeza que deseja excluir este livro?")) {
-      // Simulando deleção
-      toast.success("Livro excluído com sucesso");
-      navigate("/books");
+      try {
+        await deleteBook(id);
+        toast.success("Livro excluído com sucesso");
+        navigate("/books");
+      } catch (error) {
+        console.error("Error deleting book:", error);
+        toast.error("Erro ao excluir o livro");
+      }
     }
   };
 
@@ -110,12 +122,12 @@ const BookDetails = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground">Total de empréstimos</p>
-                  <p className="text-2xl font-bold">{book.borrowCount || 0}</p>
+                  <p className="text-2xl font-bold">{book.borrow_count || 0}</p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-muted-foreground">Adicionado em</p>
                   <p className="text-lg font-semibold">
-                    {new Date(book.createdAt).toLocaleDateString("pt-BR")}
+                    {new Date(book.created_at).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
               </div>
@@ -132,7 +144,7 @@ const BookDetails = () => {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Excluir
               </Button>
-              <Button onClick={() => navigate(`/books`)}>
+              <Button onClick={() => navigate(`/books/edit/${book.id}`)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </Button>
@@ -146,7 +158,7 @@ const BookDetails = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center py-8 text-muted-foreground">
-              <p>Esta funcionalidade estará disponível após a integração com o Supabase.</p>
+              <p>Esta funcionalidade estará disponível em breve.</p>
             </div>
           </CardContent>
         </Card>
