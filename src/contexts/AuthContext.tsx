@@ -2,9 +2,8 @@
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
-
-// Este é um contexto simulado que será posteriormente conectado ao Supabase
-// após a integração do Supabase ser feita.
+import { supabase } from '@/lib/supabase';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -17,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,38 +27,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Simular verificação de usuário ao carregar
+  // Converter usuário do Supabase para o formato que usamos
+  const formatUser = (session: Session | null): User | null => {
+    if (!session?.user) return null;
+    
+    const supaUser = session.user;
+    
+    return {
+      id: supaUser.id,
+      email: supaUser.email || '',
+      name: supaUser.user_metadata.name || supaUser.email?.split('@')[0] || '',
+    };
+  };
+
+  // Verificar sessão ao carregar
   useEffect(() => {
-    const storedUser = localStorage.getItem('bookworm-user');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const formattedUser = formatUser(session);
+        setUser(formattedUser);
+        setLoading(false);
+      }
+    );
+
+    // Verificar se já existe uma sessão ativa
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const formattedUser = formatUser(session);
+      setUser(formattedUser);
+      setLoading(false);
+    };
     
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    
-    setLoading(false);
+    checkSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
       
-      // Simulando autenticação - será substituído pelo Supabase
-      if (email && password) {
-        const mockUser = {
-          id: '123',
-          email,
-          name: email.split('@')[0],
-        };
-        
-        setUser(mockUser);
-        localStorage.setItem('bookworm-user', JSON.stringify(mockUser));
-        navigate('/dashboard');
-        toast("Login realizado com sucesso!");
-      } else {
-        throw new Error('Credenciais inválidas');
-      }
-    } catch (error) {
-      toast.error("Erro ao fazer login");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      const formattedUser = formatUser(data.session);
+      setUser(formattedUser);
+      navigate('/dashboard');
+      toast("Login realizado com sucesso!");
+    } catch (error: any) {
+      toast.error(`Erro ao fazer login: ${error.message}`);
       console.error(error);
     } finally {
       setLoading(false);
@@ -70,34 +92,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      // Simulando registro - será substituído pelo Supabase
-      if (email && password && name) {
-        const mockUser = {
-          id: '123',
-          email,
-          name,
-        };
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+        },
+      });
+      
+      if (error) throw error;
+      
+      const formattedUser = formatUser(data.session);
+      setUser(formattedUser);
+      
+      // Após o signup, vamos inserir o usuário na tabela users
+      if (data.user) {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            name,
+            email,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
         
-        setUser(mockUser);
-        localStorage.setItem('bookworm-user', JSON.stringify(mockUser));
-        navigate('/dashboard');
-        toast("Conta criada com sucesso!");
-      } else {
-        throw new Error('Dados inválidos');
+        if (insertError) {
+          console.error('Error inserting user data:', insertError);
+        }
       }
-    } catch (error) {
-      toast.error("Erro ao criar conta");
+      
+      navigate('/dashboard');
+      toast("Conta criada com sucesso! Verifique seu email para confirmar.");
+    } catch (error: any) {
+      toast.error(`Erro ao criar conta: ${error.message}`);
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem('bookworm-user');
-    navigate('/login');
-    toast("Sessão encerrada");
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      navigate('/login');
+      toast("Sessão encerrada");
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      toast.error("Erro ao encerrar sessão");
+    }
   };
 
   return (

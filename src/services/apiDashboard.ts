@@ -1,44 +1,69 @@
 
-// src/services/apiDashboard.ts
-
 import { 
   DashboardStats,
   BooksByCategory,
   MostBorrowedBook,
   MonthlyLoanStat
 } from "@/types";
-import { mockBooks, mockUsers, mostBorrowedBooks } from "@/data/mockData";
+import { supabase } from "@/lib/supabase";
 
 // Get dashboard statistics
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Calculate stats from mock data
-  const totalBooks = mockBooks.length;
-  const activeUsers = mockUsers.filter(user => user.isActive).length;
-  const totalLoans = mockBooks.reduce((total, book) => total + (book.borrowCount || 0), 0);
-  const totalLoanedBooks = mockBooks.filter(book => !book.available).length;
-  
+  // Get total books
+  const { count: totalBooks, error: booksError } = await supabase
+    .from('books')
+    .select('*', { count: 'exact', head: true });
+
+  // Get active users
+  const { count: activeUsers, error: usersError } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  // Get total loaned books (not available)
+  const { count: totalLoanedBooks, error: loanedBooksError } = await supabase
+    .from('books')
+    .select('*', { count: 'exact', head: true })
+    .eq('available', false);
+
+  // Get total loans
+  const { count: totalLoans, error: loansError } = await supabase
+    .from('loans')
+    .select('*', { count: 'exact', head: true });
+
+  if (booksError || usersError || loanedBooksError || loansError) {
+    console.error('Error fetching stats:', { booksError, usersError, loanedBooksError, loansError });
+    throw new Error('Error fetching dashboard statistics');
+  }
+
   return {
-    totalBooks,
-    activeUsers,
-    totalLoans,
-    totalLoanedBooks
+    totalBooks: totalBooks || 0,
+    activeUsers: activeUsers || 0,
+    totalLoans: totalLoans || 0,
+    totalLoanedBooks: totalLoanedBooks || 0
   };
 };
 
 // Get books by category
 export const getBooksByCategory = async (): Promise<BooksByCategory[]> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
+  const { data, error } = await supabase
+    .from('books')
+    .select('category');
+
+  if (error) {
+    console.error('Error fetching books by category:', error);
+    throw new Error('Error fetching books by category');
+  }
+
   // Group books by category
   const categories: Record<string, number> = {};
-  mockBooks.forEach(book => {
-    categories[book.category] = (categories[book.category] || 0) + 1;
-  });
   
+  data.forEach(book => {
+    if (book.category) {
+      categories[book.category] = (categories[book.category] || 0) + 1;
+    }
+  });
+
   // Convert to array format
   return Object.keys(categories).map(category => ({
     category,
@@ -48,29 +73,61 @@ export const getBooksByCategory = async (): Promise<BooksByCategory[]> => {
 
 // Get most borrowed books
 export const getMostBorrowedBooks = async (): Promise<MostBorrowedBook[]> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Return pre-defined most borrowed books
-  return mostBorrowedBooks;
+  const { data, error } = await supabase
+    .from('books')
+    .select('id, title, author, borrow_count')
+    .order('borrow_count', { ascending: false })
+    .limit(5);
+
+  if (error) {
+    console.error('Error fetching most borrowed books:', error);
+    throw new Error('Error fetching most borrowed books');
+  }
+
+  return data.map(book => ({
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    borrowCount: book.borrow_count
+  }));
 };
 
 // Get monthly loan statistics
 export const getMonthlyLoanStats = async (): Promise<MonthlyLoanStat[]> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Create mock data for monthly loans
-  const currentYear = new Date().getFullYear();
+  const { data, error } = await supabase
+    .from('loans')
+    .select('loan_date')
+    .order('loan_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching monthly loan stats:', error);
+    throw new Error('Error fetching monthly loan stats');
+  }
+
   const months = [
     "Jan", "Fev", "Mar", "Abr",
     "Mai", "Jun", "Jul", "Ago",
     "Set", "Out", "Nov", "Dez"
   ];
-  
-  // Generate random loan numbers for each month
-  return months.map((month, index) => ({
+
+  // Initialize monthly stats with zeros
+  const monthlyStats: Record<string, number> = {};
+  months.forEach(month => {
+    monthlyStats[month] = 0;
+  });
+
+  // Count loans by month
+  data.forEach(loan => {
+    const date = new Date(loan.loan_date);
+    const monthIndex = date.getMonth();
+    const monthName = months[monthIndex];
+    
+    monthlyStats[monthName] = (monthlyStats[monthName] || 0) + 1;
+  });
+
+  // Convert to array format
+  return months.map(month => ({
     month,
-    loans: Math.floor(Math.random() * 20) + 5 // Random number between 5 and 25
+    loans: monthlyStats[month]
   }));
 };

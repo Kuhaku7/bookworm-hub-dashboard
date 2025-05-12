@@ -7,27 +7,28 @@ export interface Book {
   category: string;
   year: number;
   available: boolean;
-  createdAt: string;
-  updatedAt: string;
-  borrowCount?: number;
+  created_at: string;
+  updated_at: string;
+  borrow_count: number;
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Loan {
   id: string;
-  bookId: string;
-  userId: string;
-  loanDate: string;
-  returnDate: string | null;
+  book_id: string;
+  user_id: string;
+  loan_date: string;
+  return_date: string | null;
   status: 'active' | 'returned';
+  created_at: string;
   book?: Book;
   user?: User;
 }
