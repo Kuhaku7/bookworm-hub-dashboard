@@ -1,6 +1,6 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
 
 // Este é um contexto simulado que será posteriormente conectado ao Supabase
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Simular verificação de usuário ao carregar
   useEffect(() => {
