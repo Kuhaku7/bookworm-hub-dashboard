@@ -19,6 +19,9 @@ type ToasterToast = ToastProps & {
   description?: string
   action?: React.ReactNode
   variant?: "default" | "destructive"
+  // Adicionando a propriedade open que estava faltando
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const actionTypes = {
