@@ -2,7 +2,7 @@
 import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
@@ -40,15 +40,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
-  // Check if Supabase is configured
+  // Verificar sessão ao carregar
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      console.warn('Supabase is not properly configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-      setLoading(false);
-      return;
-    }
-
-    // Verificar sessão ao carregar
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -77,11 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!isSupabaseConfigured()) {
-      toast.error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
-      return;
-    }
-    
     try {
       setLoading(true);
       
@@ -105,11 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    if (!isSupabaseConfigured()) {
-      toast.error('Supabase não está configurado corretamente. Verifique as variáveis de ambiente.');
-      return;
-    }
-    
     try {
       setLoading(true);
       
@@ -155,11 +138,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    if (!isSupabaseConfigured()) {
-      navigate('/login');
-      return;
-    }
-    
     try {
       await supabase.auth.signOut();
       setUser(null);

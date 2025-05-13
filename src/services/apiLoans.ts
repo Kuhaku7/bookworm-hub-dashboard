@@ -1,99 +1,121 @@
 
-import { Loan } from "@/types";
-import { supabase } from "@/lib/supabase";
+import { supabase } from '@/integrations/supabase/client';
+import { Loan } from '@/types';
 
-export const getLoans = async (): Promise<Loan[]> => {
+export const getLoans = async () => {
   const { data, error } = await supabase
     .from('loans')
-    .select('*, book:books(*), user:users(*)')
+    .select(`
+      id,
+      book_id,
+      user_id,
+      loan_date,
+      return_date,
+      status,
+      created_at,
+      books:book_id (id, title, author, category, year, available),
+      users:user_id (id, name, email)
+    `)
     .order('loan_date', { ascending: false });
 
   if (error) {
     console.error('Error fetching loans:', error);
-    throw new Error('Error fetching loans');
+    throw new Error(error.message);
   }
 
-  return data || [];
+  // Formatar os dados para o formato esperado pela aplicação
+  const formattedLoans = data.map(loan => ({
+    id: loan.id,
+    book_id: loan.book_id,
+    user_id: loan.user_id,
+    loan_date: loan.loan_date,
+    return_date: loan.return_date,
+    status: loan.status,
+    created_at: loan.created_at,
+    book: loan.books,
+    user: loan.users
+  }));
+
+  return formattedLoans;
 };
 
-export const getLoan = async (id: string): Promise<Loan | null> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .select('*, book:books(*), user:users(*)')
-    .eq('id', id)
-    .single();
-
-  if (error) {
-    console.error('Error fetching loan:', error);
-    return null;
-  }
-
-  return data;
-};
-
-export const createLoan = async (loan: {
-  book_id: string;
-  user_id: string;
-}): Promise<Loan> => {
-  // First, update the book's availability to false
-  const { error: updateError } = await supabase
+export const createLoan = async (loanData: { book_id: string; user_id: string }) => {
+  // 1. Marcar o livro como indisponível
+  const { error: bookError } = await supabase
     .from('books')
-    .update({ 
-      available: false,
-      borrow_count: supabase.rpc('increment_borrow_count', { row_id: loan.book_id }) 
-    })
-    .eq('id', loan.book_id);
+    .update({ available: false })
+    .eq('id', loanData.book_id);
 
-  if (updateError) {
-    console.error('Error updating book availability:', updateError);
-    throw new Error('Error updating book availability');
+  if (bookError) {
+    console.error('Error updating book availability:', bookError);
+    throw new Error(bookError.message);
   }
 
-  // Then create the loan
+  // 2. Incrementar o contador de empréstimos usando a função SQL
+  const { data: incrementResult, error: incrementError } = await supabase
+    .rpc('increment_borrow_count', { row_id: loanData.book_id });
+
+  if (incrementError) {
+    console.error('Error incrementing borrow count:', incrementError);
+    throw new Error(incrementError.message);
+  }
+
+  // 3. Criar o registro de empréstimo
   const { data, error } = await supabase
     .from('loans')
-    .insert([{
-      book_id: loan.book_id,
-      user_id: loan.user_id,
-      loan_date: new Date().toISOString(),
+    .insert({
+      book_id: loanData.book_id,
+      user_id: loanData.user_id,
       status: 'active'
-    }])
-    .select('*, book:books(*), user:users(*)')
+    })
+    .select(`
+      id,
+      book_id,
+      user_id,
+      loan_date,
+      return_date,
+      status,
+      created_at,
+      books:book_id (id, title, author, category, year, available),
+      users:user_id (id, name, email)
+    `)
     .single();
 
   if (error) {
     console.error('Error creating loan:', error);
-    throw new Error('Error creating loan');
+    throw new Error(error.message);
   }
 
-  return data;
+  // Formatar o resultado para o formato esperado
+  const formattedLoan = {
+    id: data.id,
+    book_id: data.book_id,
+    user_id: data.user_id,
+    loan_date: data.loan_date,
+    return_date: data.return_date,
+    status: data.status,
+    created_at: data.created_at,
+    book: data.books,
+    user: data.users
+  };
+
+  return formattedLoan;
 };
 
-export const returnLoan = async (id: string): Promise<Loan> => {
-  // First, get the loan to retrieve the book_id
-  const { data: loanData, error: loanError } = await supabase
+export const returnLoan = async (id: string) => {
+  // 1. Atualizar o empréstimo para "returned"
+  const { data: loanData, error: loanFetchError } = await supabase
     .from('loans')
     .select('book_id')
     .eq('id', id)
     .single();
 
-  if (loanError) {
-    console.error('Error fetching loan:', loanError);
-    throw new Error('Error fetching loan');
+  if (loanFetchError) {
+    console.error('Error fetching loan to return:', loanFetchError);
+    throw new Error(loanFetchError.message);
   }
 
-  // Update the book's availability to true
-  const { error: updateError } = await supabase
-    .from('books')
-    .update({ available: true })
-    .eq('id', loanData.book_id);
-
-  if (updateError) {
-    console.error('Error updating book availability:', updateError);
-    throw new Error('Error updating book availability');
-  }
-
-  // Update the loan status to returned and set return date
+  // 2. Atualizar o empréstimo
   const { data, error } = await supabase
     .from('loans')
     .update({
@@ -101,13 +123,47 @@ export const returnLoan = async (id: string): Promise<Loan> => {
       return_date: new Date().toISOString()
     })
     .eq('id', id)
-    .select('*, book:books(*), user:users(*)')
+    .select(`
+      id,
+      book_id,
+      user_id,
+      loan_date,
+      return_date,
+      status,
+      created_at,
+      books:book_id (id, title, author, category, year, available),
+      users:user_id (id, name, email)
+    `)
     .single();
 
   if (error) {
-    console.error('Error updating loan:', error);
-    throw new Error('Error updating loan');
+    console.error('Error returning loan:', error);
+    throw new Error(error.message);
   }
 
-  return data;
+  // 3. Marcar o livro como disponível novamente
+  const { error: bookError } = await supabase
+    .from('books')
+    .update({ available: true })
+    .eq('id', loanData.book_id);
+
+  if (bookError) {
+    console.error('Error updating book availability:', bookError);
+    throw new Error(bookError.message);
+  }
+
+  // Formatar o resultado para o formato esperado
+  const formattedLoan = {
+    id: data.id,
+    book_id: data.book_id,
+    user_id: data.user_id,
+    loan_date: data.loan_date,
+    return_date: data.return_date,
+    status: data.status,
+    created_at: data.created_at,
+    book: data.books,
+    user: data.users
+  };
+
+  return formattedLoan;
 };
