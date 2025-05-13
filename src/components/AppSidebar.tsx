@@ -14,7 +14,7 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Book, LayoutDashboard, LogOut, User, Users } from "lucide-react";
+import { Book, LayoutDashboard, LogOut, User, Users, Library } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,7 @@ const AppSidebar = () => {
     { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { title: "Livros", path: "/books", icon: Book },
     { title: "Usuários", path: "/users", icon: Users },
+    { title: "Empréstimos", path: "/loans", icon: Library },
   ];
 
   const isActive = (path: string) => {

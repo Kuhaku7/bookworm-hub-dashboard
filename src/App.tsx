@@ -9,6 +9,7 @@ import Books from "./pages/Books";
 import BookDetails from "./pages/BookDetails";
 import Users from "./pages/Users";
 import UserDetails from "./pages/UserDetails";
+import Loans from "./pages/Loans";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="books/:id" element={<BookDetails />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetails />} />
+          <Route path="loans" element={<Loans />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
