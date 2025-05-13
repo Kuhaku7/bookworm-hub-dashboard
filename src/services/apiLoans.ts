@@ -38,7 +38,10 @@ export const createLoan = async (loan: {
   // First, update the book's availability to false
   const { error: updateError } = await supabase
     .from('books')
-    .update({ available: false, borrow_count: supabase.rpc('increment_borrow_count', { row_id: loan.book_id }) })
+    .update({ 
+      available: false,
+      borrow_count: supabase.rpc('increment_borrow_count', { row_id: loan.book_id }) 
+    })
     .eq('id', loan.book_id);
 
   if (updateError) {
