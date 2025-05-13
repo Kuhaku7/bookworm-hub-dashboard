@@ -18,9 +18,9 @@ import { AuthProvider } from "./contexts/AuthContext";
 
 const App = () => (
   <TooltipProvider>
+    <Toaster />
+    <Sonner />
     <AuthProvider>
-      <Toaster />
-      <Sonner />
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<Login />} />
