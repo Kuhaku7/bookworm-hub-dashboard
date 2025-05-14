@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { useUsers } from '@/features/users/hooks/useUsers';
+import { Button } from '@/components/ui/button'; // Add this import for Button
 import SearchBar from '@/features/users/components/SearchBar';
 import UserDialog from '@/features/users/components/UserDialog';
 import UserList from '@/features/users/components/UserList';
