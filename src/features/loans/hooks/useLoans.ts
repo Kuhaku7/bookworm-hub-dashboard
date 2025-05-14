@@ -8,6 +8,7 @@ import {
   getLoansByUserId,
   getLoansByBookId,
   updateLoanStatus,
+  getLoans,
 } from "@/services/apiLoans";
 
 // Update the Loan type to explicitly define status as either "active" or "returned"
@@ -38,6 +39,25 @@ export const useLoans = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const fetchLoans = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getLoans();
+      // Explicitly cast the status to the correct type
+      setLoans(data.map(loan => ({
+        ...loan,
+        status: loan.status === "active" ? "active" : "returned"
+      } as Loan)));
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao carregar empréstimos: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchLoansByUser = async (userId: string) => {
     setLoading(true);
@@ -140,14 +160,38 @@ export const useLoans = () => {
     }
   };
 
+  // Add missing functions needed in Loans.tsx
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
+  const handleCreateLoan = async (bookId: string, userId: string) => {
+    return await addLoan({
+      book_id: bookId,
+      user_id: userId,
+      loan_date: new Date().toISOString(),
+      return_date: "",
+      status: "active"
+    });
+  };
+
+  const handleReturnLoan = async (loanId: string) => {
+    return await returnLoan(loanId);
+  };
+
   return {
     loans,
     loading,
     error,
+    searchTerm,
+    fetchLoans,
     fetchLoansByUser,
     fetchLoansByBook,
     addLoan,
     returnLoan,
     removeLoan,
+    handleSearch,
+    handleCreateLoan,
+    handleReturnLoan
   };
 };

@@ -1,4 +1,5 @@
 
+import { useEffect } from 'react';
 import { useLoans } from '@/features/loans/hooks/useLoans';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,8 @@ const Loans = () => {
     searchTerm,
     handleSearch,
     handleCreateLoan,
-    handleReturnLoan
+    handleReturnLoan,
+    fetchLoans
   } = useLoans();
 
   const { books } = useBooks();
@@ -42,8 +44,13 @@ const Loans = () => {
 
   const [selectedBookId, setSelectedBookId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const availableBooks = books.filter(book => book.available);
+
+  useEffect(() => {
+    fetchLoans();
+  }, []);
 
   const handleLoanSubmit = async () => {
     if (!selectedBookId || !selectedUserId) {
@@ -53,9 +60,23 @@ const Loans = () => {
     await handleCreateLoan(selectedBookId, selectedUserId);
     setSelectedBookId('');
     setSelectedUserId('');
+    setIsDialogOpen(false);
   };
 
-  if (loading) {
+  // Filter loans based on search term
+  const filteredLoans = loans.filter(loan => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      loan.book?.title.toLowerCase().includes(searchLower) ||
+      loan.book?.author.toLowerCase().includes(searchLower) ||
+      loan.user?.name.toLowerCase().includes(searchLower) ||
+      loan.user?.email.toLowerCase().includes(searchLower)
+    );
+  });
+
+  if (loading && loans.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-bookworm-primary"></div>
@@ -73,7 +94,7 @@ const Loans = () => {
           </p>
         </div>
         
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-bookworm-primary hover:bg-bookworm-secondary">
               Novo Empréstimo
@@ -166,14 +187,14 @@ const Loans = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loans.length === 0 ? (
+            {filteredLoans.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8">
                   Nenhum empréstimo encontrado
                 </TableCell>
               </TableRow>
             ) : (
-              loans.map((loan) => (
+              filteredLoans.map((loan) => (
                 <TableRow key={loan.id}>
                   <TableCell>
                     <div className="font-medium">{loan.book?.title}</div>
