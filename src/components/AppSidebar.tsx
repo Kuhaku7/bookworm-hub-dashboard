@@ -39,7 +39,7 @@ const AppSidebar = () => {
         <div className="flex items-center gap-2">
           <Book size={28} className="text-bookworm-primary" />
           <h1 className="text-xl font-bold text-bookworm-text">
-            Bookworm Hub
+            Biblioteca Novo Saber
           </h1>
         </div>
         <div className="ml-auto">

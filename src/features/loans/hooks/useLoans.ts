@@ -1,79 +1,153 @@
 
-import { useState, useEffect } from 'react';
-import { toast } from '@/components/ui/sonner';
-import { Loan } from '@/types';
-import { getLoans, createLoan, returnLoan } from '@/services/apiLoans';
+// Add a custom type to fix the type error with the 'status' field
+import { useState } from "react";
+import { toast } from "@/components/ui/sonner";
+import {
+  createLoan,
+  deleteLoan,
+  getLoansByUserId,
+  getLoansByBookId,
+  updateLoanStatus,
+} from "@/services/apiLoans";
+
+// Update the Loan type to explicitly define status as either "active" or "returned"
+export interface Loan {
+  id: string;
+  book_id: string;
+  user_id: string;
+  loan_date: string;
+  return_date: string;
+  status: "active" | "returned";
+  created_at: string;
+  book: {
+    id: string;
+    title: string;
+    author: string;
+    category: string;
+    year: number;
+    available: boolean;
+  };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
 
 export const useLoans = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchLoans = async () => {
-      setLoading(true);
-      try {
-        const data = await getLoans();
-        setLoans(data);
-      } catch (error) {
-        console.error('Error fetching loans:', error);
-        toast.error('Erro ao carregar empréstimos');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLoans();
-  }, []);
-
-  const filteredLoans = loans.filter(loan => 
-    loan.book?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.book?.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    loan.user?.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-  };
-
-  const handleCreateLoan = async (bookId: string, userId: string) => {
+  const fetchLoansByUser = async (userId: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      const newLoan = await createLoan({
-        book_id: bookId,
-        user_id: userId
-      });
-      setLoans(prev => [newLoan, ...prev]);
-      toast.success("Empréstimo registrado com sucesso!");
-      return newLoan;
-    } catch (error) {
-      console.error('Error creating loan:', error);
-      toast.error("Erro ao registrar empréstimo");
-      throw error;
+      const data = await getLoansByUserId(userId);
+      // Explicitly cast the status to the correct type
+      setLoans(data.map(loan => ({
+        ...loan,
+        status: loan.status === "active" ? "active" : "returned"
+      } as Loan)));
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao carregar empréstimos: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReturnLoan = async (id: string) => {
+  const fetchLoansByBook = async (bookId: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      const updatedLoan = await returnLoan(id);
-      setLoans(prev => prev.map(loan => 
-        loan.id === updatedLoan.id ? updatedLoan : loan
-      ));
+      const data = await getLoansByBookId(bookId);
+      // Explicitly cast the status to the correct type
+      setLoans(data.map(loan => ({
+        ...loan,
+        status: loan.status === "active" ? "active" : "returned"
+      } as Loan)));
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao carregar empréstimos: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addLoan = async (loan: Omit<Loan, "id" | "created_at" | "book" | "user">) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const newLoan = await createLoan(loan);
+      // Ensure the status is typed correctly
+      const typedLoan: Loan = {
+        ...newLoan,
+        status: newLoan.status === "active" ? "active" : "returned"
+      } as Loan;
+      
+      setLoans((prev) => [...prev, typedLoan]);
+      toast.success("Empréstimo registrado com sucesso!");
+      return typedLoan;
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao registrar empréstimo: ${err.message}`);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const returnLoan = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedLoan = await updateLoanStatus(id, "returned");
+      // Ensure the status is typed correctly
+      const typedLoan: Loan = {
+        ...updatedLoan,
+        status: "returned"
+      } as Loan;
+      
+      setLoans((prev) =>
+        prev.map((loan) => (loan.id === id ? typedLoan : loan))
+      );
       toast.success("Livro devolvido com sucesso!");
-      return updatedLoan;
-    } catch (error) {
-      console.error('Error returning loan:', error);
-      toast.error("Erro ao devolver livro");
-      throw error;
+      return typedLoan;
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao registrar devolução: ${err.message}`);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeLoan = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteLoan(id);
+      setLoans((prev) => prev.filter((loan) => loan.id !== id));
+      toast.success("Empréstimo removido com sucesso!");
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Erro ao remover empréstimo: ${err.message}`);
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
   return {
-    loans: filteredLoans,
+    loans,
     loading,
-    searchTerm,
-    handleSearch,
-    handleCreateLoan,
-    handleReturnLoan
+    error,
+    fetchLoansByUser,
+    fetchLoansByBook,
+    addLoan,
+    returnLoan,
+    removeLoan,
   };
 };

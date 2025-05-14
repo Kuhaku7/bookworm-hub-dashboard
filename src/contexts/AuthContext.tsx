@@ -40,6 +40,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
+  // Check for email confirmation parameter in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const confirmedEmail = params.get('confirmed_email');
+    if (confirmedEmail === 'true') {
+      toast.success("Email confirmado com sucesso!");
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
   // Verificar sessão ao carregar
   useEffect(() => {
     const checkSession = async () => {
@@ -59,6 +69,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const formattedUser = formatUser(session);
         setUser(formattedUser);
         setLoading(false);
+        
+        if (event === 'SIGNED_IN' && formattedUser) {
+          navigate('/dashboard');
+        }
       }
     );
     
@@ -67,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
