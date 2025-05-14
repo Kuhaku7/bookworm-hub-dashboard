@@ -18,20 +18,28 @@ interface BookDialogProps {
   initialBook?: Book;
   isEditing?: boolean;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const BookDialog = ({ 
   onBookSaved, 
   initialBook, 
   isEditing = false,
-  trigger 
+  trigger,
+  open,
+  onOpenChange
 }: BookDialogProps) => {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [currentBook, setCurrentBook] = useState<Partial<Book> | undefined>(initialBook);
 
   const handleBookSaved = (book: Book) => {
     onBookSaved(book);
-    setOpen(false);
+    if (onOpenChange) {
+      onOpenChange(false);
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -39,11 +47,15 @@ const BookDialog = ({
       // Reset form when closing dialog
       setCurrentBook(initialBook);
     }
-    setOpen(isOpen);
+    if (onOpenChange) {
+      onOpenChange(isOpen);
+    } else {
+      setIsOpen(isOpen);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open !== undefined ? open : isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-bookworm-primary hover:bg-bookworm-secondary">

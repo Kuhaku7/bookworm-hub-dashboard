@@ -8,9 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus } from 'lucide-react';
 import UserForm from './UserForm';
 import { User } from '@/types';
 
@@ -26,6 +24,7 @@ interface UserDialogProps {
 }
 
 const UserDialog = ({
+  isOpen = false,
   isEditing,
   newUser,
   onOpenChange,
@@ -35,18 +34,15 @@ const UserDialog = ({
   onResetForm,
 }: UserDialogProps) => {
   return (
-    <Dialog onOpenChange={(open) => {
-      if (!open) {
-        onResetForm();
-      }
-      onOpenChange(open);
-    }}>
-      <DialogTrigger asChild>
-        <Button className="bg-bookworm-primary hover:bg-bookworm-secondary">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Usuário
-        </Button>
-      </DialogTrigger>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        if (!open) {
+          onResetForm();
+        }
+        onOpenChange(open);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Usuário" : "Adicionar Novo Usuário"}</DialogTitle>
@@ -66,14 +62,12 @@ const UserDialog = ({
           <DialogClose asChild>
             <Button variant="outline">Cancelar</Button>
           </DialogClose>
-          <DialogClose asChild>
-            <Button 
-              className="bg-bookworm-primary hover:bg-bookworm-secondary"
-              onClick={isEditing ? onEditUser : onAddUser}
-            >
-              {isEditing ? "Salvar Alterações" : "Adicionar Usuário"}
-            </Button>
-          </DialogClose>
+          <Button 
+            className="bg-bookworm-primary hover:bg-bookworm-secondary"
+            onClick={isEditing ? onEditUser : onAddUser}
+          >
+            {isEditing ? "Salvar Alterações" : "Adicionar Usuário"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

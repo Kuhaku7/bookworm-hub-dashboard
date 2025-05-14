@@ -1,7 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
 import { useBooks } from '@/features/books/hooks/useBooks';
 import BookList from '@/features/books/components/BookList';
 import SearchBar from '@/features/books/components/SearchBar';
@@ -20,14 +19,24 @@ const Books = () => {
   } = useBooks();
   
   const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleEdit = (book: Book) => {
     setEditingBook(book);
+    setIsDialogOpen(true);
   };
 
   const handleBookUpdated = (book: Book) => {
     updateBookInList(book);
     setEditingBook(null);
+    setIsDialogOpen(false);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setEditingBook(null);
+    }
+    setIsDialogOpen(open);
   };
 
   if (loading) {
@@ -48,7 +57,11 @@ const Books = () => {
           </p>
         </div>
         
-        <BookDialog onBookSaved={addBookToList} />
+        <BookDialog 
+          onBookSaved={addBookToList} 
+          onOpenChange={handleOpenChange}
+          open={isDialogOpen && !editingBook}
+        />
       </div>
       
       {/* Search */}
@@ -67,7 +80,8 @@ const Books = () => {
           onBookSaved={handleBookUpdated}
           initialBook={editingBook}
           isEditing={true}
-          trigger={<span className="hidden" />} // Hidden trigger as we control opening from parent
+          open={isDialogOpen}
+          onOpenChange={handleOpenChange}
         />
       )}
     </div>

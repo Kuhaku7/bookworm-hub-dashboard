@@ -1,8 +1,10 @@
 
+import { useState } from 'react';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import SearchBar from '@/features/users/components/SearchBar';
 import UserDialog from '@/features/users/components/UserDialog';
 import UserList from '@/features/users/components/UserList';
+import { User } from '@/types';
 
 const Users = () => {
   const {
@@ -22,12 +24,37 @@ const Users = () => {
     setCurrentUserId,
   } = useUsers();
 
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleUserEdited = async () => {
+    await handleEditUser();
+    setIsDialogOpen(false);
+  };
+
+  const handleUserAdded = async () => {
+    await handleAddUser();
+    setIsDialogOpen(false);
+  };
+
+  const handleOpenDialog = () => {
+    resetForm();
+    setIsEditing(false);
+    setCurrentUserId(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditClick = (user: User) => {
+    startEditing(user);
+    setIsDialogOpen(true);
+  };
+
   const handleDialogOpenChange = (open: boolean) => {
     if (!open) {
       resetForm();
       setIsEditing(false);
       setCurrentUserId(null);
     }
+    setIsDialogOpen(open);
   };
 
   if (loading) {
@@ -48,15 +75,25 @@ const Users = () => {
           </p>
         </div>
         
-        <UserDialog
-          isEditing={isEditing}
-          newUser={newUser}
-          onOpenChange={handleDialogOpenChange}
-          onInputChange={handleInputChange}
-          onAddUser={handleAddUser}
-          onEditUser={handleEditUser}
-          onResetForm={resetForm}
-        />
+        <Button 
+          className="bg-bookworm-primary hover:bg-bookworm-secondary"
+          onClick={handleOpenDialog}
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="mr-2 h-4 w-4" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Novo Usuário
+        </Button>
       </div>
       
       {/* Filtro e busca */}
@@ -71,7 +108,19 @@ const Users = () => {
       <UserList 
         users={users} 
         onDeleteUser={handleDeleteUser} 
-        onStartEditing={startEditing} 
+        onStartEditing={handleEditClick} 
+      />
+
+      {/* User Dialog */}
+      <UserDialog
+        isOpen={isDialogOpen}
+        isEditing={isEditing}
+        newUser={newUser}
+        onOpenChange={handleDialogOpenChange}
+        onInputChange={handleInputChange}
+        onAddUser={handleUserAdded}
+        onEditUser={handleUserEdited}
+        onResetForm={resetForm}
       />
     </div>
   );
