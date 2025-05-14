@@ -1,10 +1,9 @@
 
-import { format } from 'date-fns';
+import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Button } from '@/components/ui/button';
-import { Calendar, Clock, User } from 'lucide-react';
-import { Loan } from '@/features/loans/hooks/useLoans';
-import LoanStatusBadge from './LoanStatusBadge';
+import { formatDate } from "@/lib/utils";
+import { Loan } from "@/features/loans/hooks/useLoans";
+import LoanStatusBadge from "./LoanStatusBadge";
 
 interface LoanItemProps {
   loan: Loan;
@@ -12,47 +11,41 @@ interface LoanItemProps {
 }
 
 const LoanItem = ({ loan, onReturnLoan }: LoanItemProps) => {
+  const handleReturnLoan = async () => {
+    await onReturnLoan(loan.id);
+  };
+
   return (
     <TableRow>
-      <TableCell>
-        <div className="font-medium">{loan.book?.title}</div>
-        <div className="text-sm text-muted-foreground">{loan.book?.author}</div>
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <div>{loan.user?.name}</div>
-            <div className="text-sm text-muted-foreground">{loan.user?.email}</div>
-          </div>
+      <TableCell className="font-medium">
+        {loan.book?.title}
+        <div className="text-sm text-muted-foreground">
+          {loan.book?.author}
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <div>{format(new Date(loan.loan_date), 'dd/MM/yyyy')}</div>
+        {loan.user?.name}
+        <div className="text-sm text-muted-foreground">
+          {loan.user?.email}
         </div>
-        {loan.status === 'returned' && loan.return_date && (
-          <div className="flex items-center gap-2 mt-1">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <div className="text-sm text-muted-foreground">
-              Devolvido em {format(new Date(loan.return_date), 'dd/MM/yyyy')}
-            </div>
-          </div>
-        )}
       </TableCell>
+      <TableCell>{formatDate(loan.loan_date)}</TableCell>
       <TableCell>
         <LoanStatusBadge status={loan.status} />
       </TableCell>
       <TableCell>
-        {loan.status === 'active' && (
+        {loan.status === "active" ? (
           <Button 
+            onClick={handleReturnLoan} 
             variant="outline" 
-            size="sm" 
-            onClick={() => onReturnLoan(loan.id)}
+            size="sm"
           >
             Devolver
           </Button>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            Devolvido em {loan.return_date ? formatDate(loan.return_date) : "N/A"}
+          </span>
         )}
       </TableCell>
     </TableRow>

@@ -36,6 +36,15 @@ const Loans = () => {
     );
   }
 
+  // Create wrapper functions to match expected types
+  const onCreateLoan = async (bookId: string, userId: string) => {
+    await handleCreateLoan(bookId, userId);
+  };
+
+  const onReturnLoan = async (id: string) => {
+    await handleReturnLoan(id);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -51,7 +60,7 @@ const Loans = () => {
           users={users}
           isOpen={isDialogOpen}
           onOpenChange={setIsDialogOpen}
-          onCreateLoan={handleCreateLoan}
+          onCreateLoan={onCreateLoan}
         />
       </div>
       
@@ -62,7 +71,7 @@ const Loans = () => {
       <LoansList 
         loans={loans} 
         searchTerm={searchTerm}
-        onReturnLoan={handleReturnLoan}
+        onReturnLoan={onReturnLoan}
       />
     </div>
   );
